@@ -32,7 +32,7 @@ def generate_blog():
     return blog_content
 
 def get_blog_id():
-    url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs.json"
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
         "Content-Type": "application/json"
@@ -78,7 +78,7 @@ def get_blog_id():
         return None
 
 def post_blog_to_shopify(title, content, blog_id):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs/{blog_id}/articles.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
         "Content-Type": "application/json"
@@ -96,17 +96,42 @@ def post_blog_to_shopify(title, content, blog_id):
     print(f"📤 Posting to URL: {url}")
     print(f"📝 Article title: {title}")
     print(f"📄 Content length: {len(content)} characters")
+    print(f"🔧 Request method: POST")
+    print(f"🔧 Headers: {headers}")
+    print(f"🔧 Payload preview: {json.dumps({**payload, 'article': {**payload['article'], 'body_html': payload['article']['body_html'][:100] + '...'}}, indent=2)}")
     
     try:
         resp = requests.post(url, headers=headers, json=payload)
         print(f"📡 Shopify response status: {resp.status_code}")
         
-        if resp.status_code == 201:
+        if resp.status_code in [200, 201]:
             response_data = resp.json()
-            article_id = response_data.get('article', {}).get('id')
-            print(f"✅ Blog posted successfully! Article ID: {article_id}")
-            print(f"✅ Title: {title}")
-            return True
+            
+            # Check if we got a single article (201 response) or articles array (200 response)
+            if 'article' in response_data:
+                article_id = response_data.get('article', {}).get('id')
+                print(f"✅ Blog posted successfully! Article ID: {article_id}")
+                print(f"✅ Title: {title}")
+                return True
+            elif 'articles' in response_data:
+                # This might be a GET response instead of POST, let's check what happened
+                print(f"⚠️  Received articles array instead of single article")
+                print(f"⚠️  This suggests the API might be returning existing articles")
+                print(f"📄 Response: {json.dumps(response_data, indent=2)}")
+                
+                # Let's try to verify if our article was actually created
+                # by checking if there's a recent article with our title
+                articles = response_data.get('articles', [])
+                for article in articles:
+                    if article.get('title') == title:
+                        print(f"✅ Found our article! ID: {article.get('id')}")
+                        return True
+                
+                print("❌ Our article was not found in the response")
+                return False
+            else:
+                print(f"❌ Unexpected response format: {json.dumps(response_data, indent=2)}")
+                return False
         else:
             print(f"❌ Failed to post blog. Status: {resp.status_code}")
             print(f"❌ Response: {resp.text}")
@@ -148,9 +173,62 @@ def extract_title(content):
     
     return "Weekly Blog Post"
 
+def test_article_creation():
+    """Test creating a simple article to debug the issue"""
+    blog_id = get_blog_id()
+    if not blog_id:
+        return False
+    
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
+        "Content-Type": "application/json"
+    }
+    
+    # Simple test payload
+    test_payload = {
+        "article": {
+            "title": f"Test Article {int(time.time())}",
+            "body_html": "<p>This is a test article created by the API.</p>",
+            "published": False  # Don't publish test articles
+        }
+    }
+    
+    print(f"🧪 Testing article creation...")
+    print(f"📤 URL: {url}")
+    print(f"🔧 Headers: {json.dumps(headers, indent=2)}")
+    print(f"🔧 Payload: {json.dumps(test_payload, indent=2)}")
+    
+    try:
+        # Let's also try with explicit timeout and verify SSL
+        resp = requests.post(
+            url, 
+            headers=headers, 
+            json=test_payload,
+            timeout=30,
+            verify=True
+        )
+        
+        print(f"📡 Response Status: {resp.status_code}")
+        print(f"📡 Response Headers: {dict(resp.headers)}")
+        print(f"📡 Response Body: {resp.text}")
+        
+        if resp.status_code == 201:
+            response_data = resp.json()
+            article_id = response_data.get('article', {}).get('id')
+            print(f"✅ Test article created successfully! ID: {article_id}")
+            return True
+        else:
+            print(f"❌ Test article creation failed")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error during test: {e}")
+        return False
+
 def test_shopify_connection():
     """Test if Shopify API credentials are working"""
-    url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/shop.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/shop.json"
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
         "Content-Type": "application/json"
@@ -177,6 +255,12 @@ def run():
     # Test Shopify connection first
     if not test_shopify_connection():
         print("❌ Aborting due to Shopify connection issues.")
+        return
+    
+    # Test article creation with simple payload
+    print("\n🧪 Testing article creation...")
+    if not test_article_creation():
+        print("❌ Basic article creation test failed. Check permissions and API setup.")
         return
     
     # Generate blog content
