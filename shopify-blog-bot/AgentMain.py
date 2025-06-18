@@ -44,12 +44,17 @@ def get_blog_id():
     resp = requests.get(url, headers=headers)
     resp.raise_for_status()
     blogs = resp.json().get("blogs", [])
+    print("Available blogs and handles:")
+    for blog in blogs:
+        print(f" - id: {blog['id']}, handle: {blog['handle']}")
 
     for blog in blogs:
         if blog["handle"] == "news":
+            print(f"Found blog 'news' with id: {blog['id']}")
             return blog["id"]
 
     raise Exception("❌ Blog with handle 'news' not found.")
+
 
 def post_blog_to_shopify(title, content, blog_id):
     url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs/{blog_id}/articles.json"
