@@ -3,6 +3,7 @@ import requests
 import openai
 from dotenv import load_dotenv
 from AIPromptGenerator import get_prompt
+import time
 
 load_dotenv()
 
@@ -88,6 +89,7 @@ def run():
     print("Using blog ID:", blog_id)
     print("Generated blog content:\n", content)
     print("Extracted title:", title)
+    time.sleep(60)  # wait for 60 seconds
 
 
 
