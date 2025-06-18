@@ -12,25 +12,26 @@ SHOPIFY_API_KEY = os.getenv("SHOPIFY_API_KEY")
 SHOPIFY_PASSWORD = os.getenv("SHOPIFY_PASSWORD")
 SHOPIFY_STORE = os.getenv("SHOPIFY_STORE")
 
-openai.api_key = OPENAI_API_KEY
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Example keywords
 KEYWORDS = ["linen shirts", "summer outfits", "2025 fashion"]
 
 
 def generate_blog():
-    prompt = get_prompt(KEYWORDS)
+    print("⏳ Generating blog...")
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o",  # or gpt-3.5-turbo
         messages=[
-            {"role": "system", "content": "You are a blog writer and also a wine connoisseur"},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop."},
+            {"role": "user", "content": "Write a blog post about 'Best red wines for summer under $50'."}
         ],
         temperature=0.7
     )
 
-    return response.choices[0].message.content
+    blog_content = response.choices[0].message.content
+    return blog_content
 
 
 def get_blog_id():
