@@ -50,7 +50,7 @@ def get_blog_id():
 
     raise Exception("❌ Blog with handle 'news' not found.")
 
-Task.Loop(Minutes = 1)
+@tasks.loop(seconds=120)
 def post_blog_to_shopify(title, content, blog_id):
     url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs/{blog_id}/articles.json"
     headers = {
