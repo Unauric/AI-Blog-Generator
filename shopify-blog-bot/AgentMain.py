@@ -51,7 +51,6 @@ def get_blog_id():
 
     raise Exception("❌ Blog with handle 'news' not found.")
 
-@tasks.loop(seconds=120)
 def post_blog_to_shopify(title, content, blog_id):
     url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs/{blog_id}/articles.json"
     headers = {
@@ -79,7 +78,6 @@ def extract_title(content):
     match = re.search(r"<h2>(.*?)</h2>", content)
     return match.group(1) if match else "Weekly Blog"
 
-##@tasks.loop(days = 1)
 def run():
     print("⏳ Generating blog...")
     content = generate_blog()
