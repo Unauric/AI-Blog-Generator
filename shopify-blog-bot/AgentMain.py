@@ -22,7 +22,7 @@ def generate_blog():
     print("⏳ Generating blog...")
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # or gpt-3.5-turbo
+        model="gpt-4o",  # or gpt-3.5-turbo
         messages=[
             {"role": "system", "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop."},
             {"role": "user", "content": "Write a blog post about 'Best red wines for summer under $50'."}
