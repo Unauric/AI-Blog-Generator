@@ -50,7 +50,7 @@ def get_blog_id():
 
     raise Exception("❌ Blog with handle 'news' not found.")
 
-
+Task.Loop(Minutes = 1)
 def post_blog_to_shopify(title, content, blog_id):
     url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs/{blog_id}/articles.json"
     headers = {
@@ -64,9 +64,13 @@ def post_blog_to_shopify(title, content, blog_id):
             "published": True  # Auto-publish
         }
     }
+
     resp = requests.post(url, headers=headers, json=payload)
+    print("Shopify response status:", resp.status_code)
+    print("Shopify response body:", resp.text)
     resp.raise_for_status()
     print("✅ Blog posted:", title)
+
 
 
 def extract_title(content):
@@ -81,6 +85,10 @@ def run():
     title = extract_title(content)
     blog_id = get_blog_id()
     post_blog_to_shopify(title, content, blog_id)
+    print("Using blog ID:", blog_id)
+    print("Generated blog content:\n", content)
+    print("Extracted title:", title)
+
 
 
 if __name__ == "__main__":
