@@ -37,7 +37,7 @@ def generate_blog():
 
 
 def get_blog_id():
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/news.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs.json"
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
         "Content-Type": "application/json",
@@ -92,7 +92,6 @@ def run():
     print("Generated blog content:\n", content)
     print("Extracted title:", title)
     time.sleep(60)  # wait for 60 seconds
-
 
 if __name__ == "__main__":
     run()
