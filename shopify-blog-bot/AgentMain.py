@@ -21,17 +21,17 @@ KEYWORDS = ["linen shirts", "summer outfits", "2025 fashion"]
 def generate_blog():
     print("⏳ Generating blog...")
 
-    response = client.chat.completions.create(
-        model="gpt-4o",  # or gpt-3.5-turbo
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop."},
-            {"role": "user", "content": "Write a blog post about 'Best red wines for summer under $50'."}
-        ],
-        temperature=0.7
-    )
+   # response = client.chat.completions.create(
+   #     model="gpt-4o",  # or gpt-3.5-turbo
+   #     messages=[
+   #         {"role": "system", "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop."},
+   #         {"role": "user", "content": "Write a blog post about 'Best red wines for summer under $50'."}
+   #     ],
+   #     temperature=0.7
+   # )
 
-    blog_content = response.choices[0].message.content
-    return blog_content
+    #blog_content = response.choices[0].message.content
+    return 0
 
 
 def get_blog_id():
