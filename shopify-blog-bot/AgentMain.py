@@ -94,5 +94,5 @@ def run():
     time.sleep(60)  # wait for 60 seconds
 
 
-if name == "main":
+if __name__ == "__main__":
     run()
