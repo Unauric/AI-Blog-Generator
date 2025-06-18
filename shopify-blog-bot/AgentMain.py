@@ -179,84 +179,110 @@ def test_article_creation():
     if not blog_id:
         return False
     
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
-    headers = {
+    # Try multiple API versions
+    api_versions = ["2025-04", "2024-10", "2024-07", "2024-04"]
+    
+    for api_version in api_versions:
+        print(f"\n🧪 Testing with API version: {api_version}")
+        url = f"https://{SHOPIFY_STORE}/admin/api/{api_version}/blogs/{blog_id}/articles.json"
+        headers = {
+            "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
+            "Content-Type": "application/json"
+        }
+        
+        # Simple test payload
+        test_payload = {
+            "article": {
+                "title": f"Test Article {api_version} {int(time.time())}",
+                "body_html": "<p>This is a test article created by the API.</p>",
+                "published": False
+            }
+        }
+        
+        print(f"📤 URL: {url}")
+        
+        try:
+            resp = requests.post(url, headers=headers, json=test_payload, timeout=30)
+            
+            print(f"📡 Response Status: {resp.status_code}")
+            
+            if resp.status_code == 201:
+                print(f"✅ SUCCESS with API version {api_version}!")
+                response_data = resp.json()
+                article_id = response_data.get('article', {}).get('id')
+                print(f"✅ Article created with ID: {article_id}")
+                return True
+            elif resp.status_code == 422:
+                # Validation error - this is good, means we're hitting the right endpoint
+                print(f"❌ Validation error (422) - checking details...")
+                print(f"Response: {resp.text}")
+            elif resp.status_code == 200:
+                print(f"❌ Still getting 200 (existing articles) with {api_version}")
+                # Check if it's actually a GET response
+                response_data = resp.json()
+                if 'articles' in response_data:
+                    print(f"📋 Got {len(response_data['articles'])} existing articles")
+            else:
+                print(f"❌ Status {resp.status_code}: {resp.text}")
+                
+        except Exception as e:
+            print(f"❌ Error with {api_version}: {e}")
+    
+    # If all API versions fail, let's try a different approach
+    print(f"\n🔄 Trying alternative request format...")
+    return test_alternative_format(blog_id)
+
+def test_alternative_format(blog_id):
+    """Try alternative request formats"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    
+    # Try with Basic Auth instead of Token (some setups use this)
+    import base64
+    
+    # Method 1: Try with different headers
+    headers1 = {
         "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
     }
     
-    # Simple test payload
+    # Method 2: Try with API key and password (if you have them)
+    if SHOPIFY_API_KEY:
+        auth_string = f"{SHOPIFY_API_KEY}:{SHOPIFY_PASSWORD}"
+        auth_bytes = base64.b64encode(auth_string.encode()).decode()
+        headers2 = {
+            "Authorization": f"Basic {auth_bytes}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+    else:
+        headers2 = headers1
+    
     test_payload = {
         "article": {
-            "title": f"Test Article {int(time.time())}",
-            "body_html": "<p>This is a test article created by the API.</p>",
-            "published": False  # Don't publish test articles
+            "title": f"Alt Test {int(time.time())}",
+            "body_html": "<p>Alternative format test</p>",
+            "published": False
         }
     }
     
-    print(f"🧪 Testing article creation...")
-    print(f"📤 URL: {url}")
-    print(f"🔧 Headers: {json.dumps(headers, indent=2)}")
-    print(f"🔧 Payload: {json.dumps(test_payload, indent=2)}")
-    
-    # Let's also test the exact request being sent
-    print(f"🔍 Making POST request...")
-    
-    try:
-        # Check if this is actually being sent as POST
-        session = requests.Session()
-        req = requests.Request('POST', url, headers=headers, json=test_payload)
-        prepared = session.prepare_request(req)
+    for i, headers in enumerate([headers1, headers2], 1):
+        print(f"\n🔄 Method {i} headers: {json.dumps({k:v[:20]+'...' if len(str(v))>20 else v for k,v in headers.items()}, indent=2)}")
         
-        print(f"🔧 Prepared request method: {prepared.method}")
-        print(f"🔧 Prepared request URL: {prepared.url}")
-        print(f"🔧 Prepared request body: {prepared.body}")
-        
-        # Send the request
-        resp = session.send(prepared, timeout=30, verify=True)
-        
-        print(f"📡 Response Status: {resp.status_code}")
-        print(f"📡 Response Headers: {dict(resp.headers)}")
-        print(f"📡 Response Body: {resp.text}")
-        
-        # Let's also try with requests.post to see if there's a difference
-        print(f"\n🔄 Trying with direct requests.post...")
-        resp2 = requests.post(
-            url, 
-            headers=headers, 
-            json=test_payload,
-            timeout=30,
-            verify=True
-        )
-        
-        print(f"📡 Direct POST Status: {resp2.status_code}")
-        print(f"📡 Direct POST Response: {resp2.text[:500]}...")
-        
-        # Let's also try with explicit data parameter instead of json
-        print(f"\n🔄 Trying with data parameter...")
-        resp3 = requests.post(
-            url, 
-            headers=headers, 
-            data=json.dumps(test_payload),
-            timeout=30,
-            verify=True
-        )
-        
-        print(f"📡 Data POST Status: {resp3.status_code}")
-        print(f"📡 Data POST Response: {resp3.text[:500]}...")
-        
-        if resp.status_code == 201 or resp2.status_code == 201 or resp3.status_code == 201:
-            print(f"✅ Test article created successfully!")
-            return True
-        else:
-            print(f"❌ Test article creation failed")
-            return False
+        try:
+            resp = requests.post(url, headers=headers, json=test_payload, timeout=30)
+            print(f"📡 Method {i} Status: {resp.status_code}")
             
-    except Exception as e:
-        print(f"❌ Error during test: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+            if resp.status_code == 201:
+                print(f"✅ SUCCESS with method {i}!")
+                return True
+            else:
+                print(f"Response preview: {resp.text[:200]}...")
+                
+        except Exception as e:
+            print(f"❌ Method {i} error: {e}")
+    
+    return False
 
 def test_shopify_connection():
     """Test if Shopify API credentials are working"""
