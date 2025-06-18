@@ -35,8 +35,12 @@ def generate_blog():
 
 
 def get_blog_id():
-    url = f"https://{SHOPIFY_API_KEY}:{SHOPIFY_PASSWORD}@{SHOPIFY_STORE}/admin/api/2024-01/blogs.json"
-    resp = requests.get(url)
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
+        "Content-Type": "application/json"
+    }
+    resp = requests.get(url, headers=headers)
     resp.raise_for_status()
     blogs = resp.json().get("blogs", [])
 
@@ -47,9 +51,12 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 
-
 def post_blog_to_shopify(title, content, blog_id):
-    url = f"https://{SHOPIFY_API_KEY}:{SHOPIFY_PASSWORD}@{SHOPIFY_STORE}/admin/api/2024-01/blogs/{blog_id}/articles.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-01/blogs/{blog_id}/articles.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
+        "Content-Type": "application/json"
+    }
     payload = {
         "article": {
             "title": title,
@@ -57,10 +64,9 @@ def post_blog_to_shopify(title, content, blog_id):
             "published": True  # Auto-publish
         }
     }
-    resp = requests.post(url, json=payload)
+    resp = requests.post(url, headers=headers, json=payload)
     resp.raise_for_status()
     print("✅ Blog posted:", title)
-
 
 
 def extract_title(content):
