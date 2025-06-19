@@ -6,6 +6,7 @@ from AIPromptGenerator import get_prompt
 import time
 import re
 import sys
+import json
 
 # Load env
 load_dotenv()
