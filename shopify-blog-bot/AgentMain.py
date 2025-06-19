@@ -82,7 +82,7 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 def post_blog_to_shopify(title, body_html, blog_id):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
+    url = f"https://{your-store}.myshopify.com/admin/api/2025-04/blogs/{blog_id}/articles.json"
 
     # Clean up title if it includes "Title: ..." redundantly
     clean_title = title.replace("Title:", "").strip()
