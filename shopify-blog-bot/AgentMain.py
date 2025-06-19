@@ -97,7 +97,7 @@ def run():
     print("Using blog ID:", blog_id)
     print("Generated blog content:\n", content)
     print("Extracted title:", title)
-    time.sleep(60)  # wait for 60 seconds
+    time.sleep(360000)  # wait for 60 seconds
 
 if __name__ == "__main__":
     run()
