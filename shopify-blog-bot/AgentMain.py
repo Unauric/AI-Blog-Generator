@@ -93,6 +93,8 @@ def post_blog_to_shopify(title, content, blog_id):
             "title": title,
             "body_html": content,
             "published": True,
+            "tags": "AI Blog, Summer Wines",
+            "author": "BlogBot"
         }
     }
 
@@ -104,9 +106,24 @@ def post_blog_to_shopify(title, content, blog_id):
     try:
         resp = requests.post(url, headers=headers, json=payload)
         print("Shopify response status:", resp.status_code)
-        print("Shopify response body:", resp.text)
+
+        try:
+            response_json = resp.json()
+            print("Shopify JSON response:", response_json)
+
+            if "article" not in response_json:
+                print("❌ No article key in response. Likely creation failed silently.")
+                raise Exception("Blog post not created.")
+            else:
+                article_id = response_json["article"].get("id", "Unknown")
+                print(f"✅ Blog titled '{title}' successfully posted with ID: {article_id}")
+
+        except ValueError:
+            print("❌ Response not in JSON format:", resp.text)
+            raise
+
         resp.raise_for_status()
-        print(f"✅ Blog titled '{title}' successfully posted.")
+
     except requests.exceptions.RequestException as e:
         print("❌ Failed to post blog to Shopify:", e)
         if resp is not None:
