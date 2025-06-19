@@ -81,53 +81,45 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 
-def post_blog_to_shopify(title, content, blog_id):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
-    headers = {
-        "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
+def post_blog_to_shopify(title, body_html, blog_id):
+    url = f"https://madeforwine.shop/admin/api/2025-04/blogs/{blog_id}/articles.json"
+
     payload = {
         "article": {
             "title": title,
-            "body_html": content,
-            "published": True,
-            "tags": "AI Blog, Summer Wines",
-            "author": "BlogBot"
+            "body_html": body_html,
+            "published": True
         }
     }
 
-    print("🚀 Sending POST request to Shopify to create article...")
-    print("POST URL:", url)
-    print("Payload:")
-    print(payload)
+    headers = {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN
+    }
 
     try:
+        print(f"🚀 Sending POST to: {url}")
+        print(f"Payload:\n{json.dumps(payload, indent=2)[:1000]}...")  # Limit long content
+
         resp = requests.post(url, headers=headers, json=payload)
         print("Shopify response status:", resp.status_code)
 
         try:
-            response_json = resp.json()
-            print("Shopify JSON response:", response_json)
-
-            if "article" not in response_json:
-                print("❌ No article key in response. Likely creation failed silently.")
-                raise Exception("Blog post not created.")
-            else:
-                article_id = response_json["article"].get("id", "Unknown")
-                print(f"✅ Blog titled '{title}' successfully posted with ID: {article_id}")
-
-        except ValueError:
-            print("❌ Response not in JSON format:", resp.text)
+            resp_data = resp.json()
+            print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
+        except Exception:
+            print("❌ Failed to decode JSON from response:", resp.text)
             raise
 
-        resp.raise_for_status()
+        if 'article' not in resp_data:
+            print("❌ No 'article' key in response. Likely creation failed silently.")
+            raise Exception("Blog post not created.")
+
+        article = resp_data['article']
+        print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
 
     except requests.exceptions.RequestException as e:
-        print("❌ Failed to post blog to Shopify:", e)
-        if resp is not None:
-            print("Response body:", resp.text)
+        print("❌ RequestException:", e)
         raise
 
 
