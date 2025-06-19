@@ -11,8 +11,10 @@ import sys
 load_dotenv()
 
 # Config
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SHOPIFY_API_KEY = os.getenv("SHOPIFY_API_KEY")
+SHOPIFY_API_TOKEN = os.getenv("SHOPIFY_API_TOKEN")
 SHOPIFY_PASSWORD = os.getenv("SHOPIFY_PASSWORD")
 SHOPIFY_STORE = os.getenv("SHOPIFY_STORE")
 
