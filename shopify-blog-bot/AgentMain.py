@@ -56,7 +56,7 @@ def get_blog_id():
 
 
 def post_blog_to_shopify(title, content, blog_id):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
         "Content-Type": "application/json",
@@ -65,7 +65,7 @@ def post_blog_to_shopify(title, content, blog_id):
         "article": {
             "title": title,
             "body_html": content,
-            "published": True,  # Auto-publish
+            "published": True,
         }
     }
     resp = requests.post(url, headers=headers, json=payload)
