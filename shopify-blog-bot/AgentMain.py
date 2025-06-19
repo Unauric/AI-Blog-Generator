@@ -60,6 +60,7 @@ def post_blog_to_shopify(title, content, blog_id):
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_PASSWORD,
         "Content-Type": "application/json",
+        "Accept": "application/json",
     }
     payload = {
         "article": {
@@ -68,11 +69,16 @@ def post_blog_to_shopify(title, content, blog_id):
             "published": True,
         }
     }
+
+    print("Payload being sent:")
+    print(payload)
+
     resp = requests.post(url, headers=headers, json=payload)
     print("Shopify response status:", resp.status_code)
     print("Shopify response body:", resp.text)
     resp.raise_for_status()
     print("✅ Blog posted:", title)
+
 
 
 def extract_title(content):
