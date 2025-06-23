@@ -116,9 +116,7 @@ def post_blog_to_shopify(title, body_html, blog_id):
             print("❌ Failed to decode JSON from response:", resp.text)
             raise
 
-        article = resp_data.get("article") or (
-            resp_data.get("articles")[0] if "articles" in resp_data and len(resp_data["articles"]) > 0 else None
-        )
+        article = resp_data.get("article")
 
         if not article:
             raise Exception("❌ Blog post not created or response invalid.")
