@@ -93,8 +93,6 @@ def get_blog_id():
 
 def post_blog_to_shopify(title, body_html, blog_id):
     url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
-
-    # Clean up title if it includes "Title: ..." redundantly
     clean_title = title.replace("Title:", "").strip()
 
     payload = {
@@ -110,30 +108,25 @@ def post_blog_to_shopify(title, body_html, blog_id):
         "X-Shopify-Access-Token": SHOPIFY_API_TOKEN
     }
 
+    print(f"🚀 Sending POST to: {url}")
+    print(f"Payload:\n{json.dumps(payload, indent=2)}")
+
+    resp = requests.post(url, headers=headers, json=payload)
+    print("Shopify response status:", resp.status_code)
+
     try:
-        print(f"🚀 Sending POST to: {url}")
-        print(f"Payload:\n{json.dumps(payload, indent=2)[:1000]}...")
-
-        resp = requests.post(url, headers=headers, json=payload)
-        print("Shopify response status:", resp.status_code)
-
-        try:
-            resp_data = resp.json()
-            print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
-        except Exception:
-            print("❌ Failed to decode JSON from response:", resp.text)
-            raise
-
-        article = resp_data.get("article")
-
-        if not article:
-            raise Exception("❌ Blog post not created or response invalid.")
-
-        print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
-
-    except requests.exceptions.RequestException as e:
-        print("❌ RequestException:", e)
+        resp_data = resp.json()
+        print("Shopify JSON response:", json.dumps(resp_data, indent=2))
+    except Exception:
+        print("❌ Failed to decode JSON from response:", resp.text)
         raise
+
+    article = resp_data.get("article")
+    if not article:
+        raise Exception("❌ Blog post not created or response invalid.")
+
+    print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
+
 
 
 def run():
