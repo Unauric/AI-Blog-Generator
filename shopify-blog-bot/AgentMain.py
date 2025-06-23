@@ -26,38 +26,40 @@ if missing_env:
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 def generate_blog():
-    print("⏳ Generating blog with OpenAI...")
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop.",
-            },
-            {
-                "role": "user",
-                "content": "Write a blog post about 'Best red wines for summer under $50'.",
-            },
-        ],
-        temperature=0.7,
-    )
-    content = response.choices[0].message.content
-    print("✅ Blog content generated.")
-    return content
+   ## print("⏳ Generating blog with OpenAI...")
+   ## response = client.chat.completions.create(
+   ##     model="gpt-4o",
+   ##     messages=[
+   ##         {
+   ##            "role": "system",
+   ##             "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop.",
+   ##         },
+   ##         {
+   ##             "role": "user",
+   ##            "content": "Write a blog post about 'Best red wines for summer under $50'.",
+   ##         },
+   ##     ],
+   ##     temperature=0.7,
+   ## )
+   ## content = response.choices[0].message.content
+   ## print("✅ Blog content generated.")
+
+    
+    return "aaa"
 
 def extract_title(content):
-    print("🔍 Extracting blog title...")
-    match = re.search(r"<h2>(.*?)</h2>", content)
-    if match:
-        title = match.group(1).strip()
-    else:
+    ##print("🔍 Extracting blog title...")
+    ##match = re.search(r"<h2>(.*?)</h2>", content)
+    ##if match:
+    ##    title = match.group(1).strip()
+    ##else:
         # Try fallback: first markdown or plain line
-        first_line = content.strip().splitlines()[0]
-        title = re.sub(r'[*#<>]', '', first_line).strip()
-        if not title:
-            title = "Weekly Blog"
-    print("📌 Extracted title:", title)
-    return title
+    ##    first_line = content.strip().splitlines()[0]
+    ##    title = re.sub(r'[*#<>]', '', first_line).strip()
+    ##    if not title:
+    ##        title = "Weekly Blog"
+    ## print("📌 Extracted title:", title)
+    return "dummy tittle"
 
 def get_blog_id():
     url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs.json"
@@ -82,7 +84,7 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 def post_blog_to_shopify(title, body_html, blog_id):
-    url = f"https://{your-store}/admin/api/2025-04/blogs/{blog_id}/articles.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
 
     # Clean up title if it includes "Title: ..." redundantly
     clean_title = title.replace("Title:", "").strip()
