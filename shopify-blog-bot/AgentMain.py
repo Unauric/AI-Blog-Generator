@@ -315,7 +315,7 @@ def check_api_permissions():
     articles_before = len(resp.json().get("articles", []))
     print(f"📊 Articles before POST: {articles_before}")
     return articles_before
-def run():
+
 def run():
     print("⚙️ Starting automated blog post run...\n")
     
