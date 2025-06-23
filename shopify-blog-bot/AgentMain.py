@@ -237,13 +237,112 @@ def test_article_creation(blog_id):
     articles_before = len(resp.json().get("articles", []))
     print(f"📊 Articles before POST: {articles_before}")
     return articles_before
+
+def check_api_permissions():
+    """Check if we have the right permissions by testing a simple GET first"""
+    print("🔍 Checking API permissions...")
+    
+    # Test basic shop access
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/shop.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Content-Type": "application/json",
+    }
+    
+    try:
+        resp = requests.get(url, headers=headers)
+        if resp.status_code == 200:
+            print("✅ Basic API access works")
+        else:
+            print(f"❌ Basic API access failed: {resp.status_code}")
+            print(f"Response: {resp.text}")
+            return False
+    except Exception as e:
+        print(f"❌ API connection failed: {e}")
+        return False
+    
+    return True
+    """Test with absolute minimal required fields"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    
+    # Try with just title and body_html (absolute minimum)
+    minimal_payload = {
+        "article": {
+            "title": "Test Article - DELETE ME",
+            "body_html": "<p>This is a test article. Please delete.</p>"
+        }
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Accept": "application/json"
+    }
+    
+    print("🧪 Testing minimal article creation...")
+    print(f"Minimal payload: {json.dumps(minimal_payload, indent=2)}")
+    
+    resp = requests.post(url, headers=headers, json=minimal_payload)
+    print(f"Minimal test status: {resp.status_code}")
+    
+    try:
+        resp_data = resp.json()
+        print(f"Minimal test response: {json.dumps(resp_data, indent=2)[:500]}...")
+        
+        # Check if this worked
+        if resp_data.get("article"):
+            print("✅ Minimal article creation WORKED!")
+            return True
+        elif resp_data.get("articles"):
+            print("❌ Still getting articles array with minimal payload")
+            return False
+        else:
+            print("❌ Unknown response structure")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error with minimal test: {e}")
+        return False
+    """Test if articles are actually being created by checking count before/after"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Content-Type": "application/json",
+    }
+    
+    # Get count before
+    resp = requests.get(url, headers=headers)
+    articles_before = len(resp.json().get("articles", []))
+    print(f"📊 Articles before POST: {articles_before}")
+    return articles_before
+def run():
 def run():
     print("⚙️ Starting automated blog post run...\n")
+    
+    # Step 1: Check basic API permissions
+    if not check_api_permissions():
+        print("❌ API permission check failed. Exiting.")
+        return False
+    
     content = generate_blog()
     title = extract_title(content)
     blog_id = get_blog_id()
     
-    # Test: count articles before
+    # Step 2: Test minimal article creation first
+    print("\n" + "="*50)
+    print("STEP 2: Testing minimal article creation")
+    print("="*50)
+    
+    if test_minimal_article_creation(blog_id):
+        print("✅ Minimal creation works - issue is with our payload")
+    else:
+        print("❌ Even minimal creation fails - deeper API issue")
+    
+    # Step 3: Test article counting
+    print("\n" + "="*50)
+    print("STEP 3: Testing article creation with full payload")
+    print("="*50)
+    
     articles_before = test_article_creation(blog_id)
     
     try:
@@ -259,6 +358,8 @@ def run():
         
         if articles_after > articles_before:
             print("✅ Article was actually created (despite wrong response)!")
+        else:
+            print("❌ Article count didn't increase - creation likely failed")
         
         print("\n📝 Summary:")
         print(" - Title:", title)
@@ -273,7 +374,7 @@ def run():
         print("Check your Shopify admin panel to see if the article was created.")
         return False
 
-    time.sleep(60)
+    time.sleep(600)
     return True
 
 if __name__ == "__main__":
