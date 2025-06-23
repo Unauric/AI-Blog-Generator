@@ -55,6 +55,7 @@ def generate_blog():
         <li>Barbera</li>
     </ul>
     """
+
 def extract_title(content):
     ##print("🔍 Extracting blog title...")
     ##match = re.search(r"<h2>(.*?)</h2>", content)
@@ -67,7 +68,7 @@ def extract_title(content):
     ##    if not title:
     ##        title = "Weekly Blog"
     ## print("📌 Extracted title:", title)
-    return "dummy tittle"
+    return "Best Red Wines for Summer Under $50"
 
 def get_blog_id():
     url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs.json"
@@ -92,14 +93,15 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 def post_blog_to_shopify(title, body_html, blog_id):
-
     url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
 
     payload = {
         "article": {
             "title": title,
             "body_html": body_html,
-            "published": True
+            "published": True,
+            "author": "Wine Expert",  # Optional: add author
+            "tags": "wine, summer, red wine"  # Optional: add tags
         }
     }
 
@@ -109,42 +111,72 @@ def post_blog_to_shopify(title, body_html, blog_id):
     }
 
     print(f"🚀 Sending POST to: {url}")
-    print(f"Payload:\n{json.dumps(payload, indent=2)[:1000]}...")
+    print(f"Payload:\n{json.dumps(payload, indent=2)}")
 
     resp = requests.post(url, headers=headers, json=payload)
     print("Shopify response status:", resp.status_code)
+    print("Response headers:", dict(resp.headers))
 
     try:
         resp_data = resp.json()
-        print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
-    except Exception:
+        print("Shopify JSON response:", json.dumps(resp_data, indent=2))
+    except Exception as e:
+        print(f"❌ Failed to decode JSON from Shopify: {e}")
+        print("Raw response:", resp.text)
         raise Exception("❌ Failed to decode JSON from Shopify.")
 
+    # Check if we have a successful response
+    if resp.status_code not in [200, 201]:
+        print(f"❌ Unexpected status code: {resp.status_code}")
+        raise Exception(f"❌ Shopify API returned status {resp.status_code}")
+
+    # Check for the created article in the response
     article = resp_data.get("article")
-    if not article:
-        raise Exception("❌ Blog post not created or response invalid.")
-
-    if article["title"].strip() != unique_title.strip():
-        print("⚠️ Shopify returned a different article title than posted!")
-        raise Exception("❌ Possibly got cached/previous article — post may have failed.")
-
-    print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
-
+    if article:
+        # Single article was created (expected response)
+        print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
+        return article
+    
+    # Check if response contains articles array (unexpected but handle it)
+    articles = resp_data.get("articles")
+    if articles:
+        print("⚠️ Received articles array instead of single article")
+        # Try to find our article by title
+        for article in articles:
+            if article.get("title", "").strip().lower() == title.strip().lower():
+                print(f"✅ Found matching article with ID: {article['id']}")
+                return article
+        
+        print("❌ Could not find newly created article in response")
+        raise Exception("❌ Article creation unclear - check Shopify admin panel")
+    
+    # If we get here, the response structure is unexpected
+    print("❌ Unexpected response structure from Shopify")
+    raise Exception("❌ Blog post creation response invalid.")
 
 def run():
     print("⚙️ Starting automated blog post run...\n")
     content = generate_blog()
     title = extract_title(content)
     blog_id = get_blog_id()
-    post_blog_to_shopify(title, content, blog_id)
-
-    print("\n📝 Summary:")
-    print(" - Title:", title)
-    print(" - Blog ID:", blog_id)
-    print(" - Preview:\n", content[:300], "...\n")
-    print("✅ Done.")
+    
+    try:
+        article = post_blog_to_shopify(title, content, blog_id)
+        
+        print("\n📝 Summary:")
+        print(" - Title:", title)
+        print(" - Blog ID:", blog_id)
+        print(" - Article ID:", article.get('id'))
+        print(" - Preview:\n", content[:300], "...\n")
+        print("✅ Done.")
+        
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        print("Check your Shopify admin panel to see if the article was created.")
+        return False
 
     time.sleep(60)
+    return True
 
 if __name__ == "__main__":
     run()
