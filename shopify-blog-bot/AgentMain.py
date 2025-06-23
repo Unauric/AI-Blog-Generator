@@ -93,43 +93,36 @@ def get_blog_id():
 
 def post_blog_to_shopify(title, body_html, blog_id):
 
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
+ url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles"
 
-    payload = {
-        "article": {
-            "title": title,
-            "body_html": body_html,
-            "published": True
-        }
+ payload = {
+    "article": {
+        "title": title,
+        "body_html": body_html,
+        "published": True
     }
+ }
 
-    headers = {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN
-    }
+ headers = {
+    "Content-Type": "application/json",
+    "X-Shopify-Access-Token": SHOPIFY_API_TOKEN
+ }
 
-    print(f"🚀 Sending POST to: {url}")
-    print(f"Payload:\n{json.dumps(payload, indent=2)[:1000]}...")
+# Disable redirect to detect 302 fallback
+ resp = requests.post(url, headers=headers, json=payload, allow_redirects=False)
 
-    resp = requests.post(url, headers=headers, json=payload)
-    print("Shopify response status:", resp.status_code)
+ print("Status:", resp.status_code)
+ print("Headers:", resp.headers)
+ print("Body:", resp.text)
 
-    try:
-        resp_data = resp.json()
-        print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
-    except Exception:
-        raise Exception("❌ Failed to decode JSON from Shopify.")
-
-    article = resp_data.get("article")
-    if not article:
-        raise Exception("❌ Blog post not created or response invalid.")
-
-    if article["title"].strip() != unique_title.strip():
-        print("⚠️ Shopify returned a different article title than posted!")
-        raise Exception("❌ Possibly got cached/previous article — post may have failed.")
-
-    print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
-
+ try:
+    data = resp.json()
+    article = data.get("article")
+     if not article:
+        raise Exception("❌ Article missing in response.")
+    print("✅ Created article:", article["title"])
+except Exception as e:
+    print("❌ Failed to create article:", str(e))
 
 
 def run():
