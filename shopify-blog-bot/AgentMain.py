@@ -92,14 +92,12 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 def post_blog_to_shopify(title, body_html, blog_id):
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    unique_title = f"{title.strip()} ({now_str})"
 
     url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
 
     payload = {
         "article": {
-            "title": unique_title,
+            "title": title,
             "body_html": body_html,
             "published": True
         }
