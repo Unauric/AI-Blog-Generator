@@ -175,7 +175,7 @@ def run():
         print("Check your Shopify admin panel to see if the article was created.")
         return False
 
-    time.sleep(60)
+    time.sleep(600)
     return True
 
 if __name__ == "__main__":
