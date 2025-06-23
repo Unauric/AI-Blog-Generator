@@ -43,10 +43,18 @@ def generate_blog():
    ## )
    ## content = response.choices[0].message.content
    ## print("✅ Blog content generated.")
-
     
-    return "aaa"
-
+    return """
+    <h2>Best Red Wines for Summer Under $50</h2>
+    <p>Looking for great red wines that pair well with sunshine? Here are 5 amazing picks under $50.</p>
+    <ul>
+        <li>Pinot Noir</li>
+        <li>Gamay</li>
+        <li>Zinfandel</li>
+        <li>Grenache</li>
+        <li>Barbera</li>
+    </ul>
+    """
 def extract_title(content):
     ##print("🔍 Extracting blog title...")
     ##match = re.search(r"<h2>(.*?)</h2>", content)
