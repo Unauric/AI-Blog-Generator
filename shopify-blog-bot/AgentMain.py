@@ -92,14 +92,14 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 def post_blog_to_shopify(title, body_html, blog_id):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    unique_title = f"{title.strip()} ({now_str})"
 
-    # Clean up title if it includes "Title: ..." redundantly
-    clean_title = title.replace("Title:", "").strip()
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
 
     payload = {
         "article": {
-            "title": clean_title,
+            "title": unique_title,
             "body_html": body_html,
             "published": True
         }
@@ -110,33 +110,27 @@ def post_blog_to_shopify(title, body_html, blog_id):
         "X-Shopify-Access-Token": SHOPIFY_API_TOKEN
     }
 
+    print(f"🚀 Sending POST to: {url}")
+    print(f"Payload:\n{json.dumps(payload, indent=2)[:1000]}...")
+
+    resp = requests.post(url, headers=headers, json=payload)
+    print("Shopify response status:", resp.status_code)
+
     try:
-        print(f"🚀 Sending POST to: {url}")
-        print(f"Payload:\n{json.dumps(payload, indent=2)[:1000]}...")
+        resp_data = resp.json()
+        print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
+    except Exception:
+        raise Exception("❌ Failed to decode JSON from Shopify.")
 
-        resp = requests.post(url, headers=headers, json=payload)
-        print("Shopify response status:", resp.status_code)
+    article = resp_data.get("article")
+    if not article:
+        raise Exception("❌ Blog post not created or response invalid.")
 
-        try:
-            resp_data = resp.json()
-            print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
-        except Exception:
-            print("❌ Failed to decode JSON from response:", resp.text)
-            raise
+    if article["title"].strip() != unique_title.strip():
+        print("⚠️ Shopify returned a different article title than posted!")
+        raise Exception("❌ Possibly got cached/previous article — post may have failed.")
 
-        article = resp_data.get("article") or (
-            resp_data.get("articles")[0] if "articles" in resp_data and len(resp_data["articles"]) > 0 else None
-        )
-
-        if not article:
-            raise Exception("❌ Blog post not created or response invalid.")
-
-        print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
-
-    except requests.exceptions.RequestException as e:
-        print("❌ RequestException:", e)
-        raise
-
+    print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
 
 
 def run():
