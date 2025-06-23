@@ -333,7 +333,7 @@ def run():
     print("STEP 2: Testing minimal article creation")
     print("="*50)
     
-    if test_minimal_article_creation(blog_id):
+    if test_article_creation(blog_id):
         print("✅ Minimal creation works - issue is with our payload")
     else:
         print("❌ Even minimal creation fails - deeper API issue")
