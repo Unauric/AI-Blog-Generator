@@ -1,5 +1,7 @@
 import os
 import requests
+import urllib.request
+import urllib.parse
 import openai
 from dotenv import load_dotenv
 from AIPromptGenerator import get_prompt
@@ -71,7 +73,7 @@ def extract_title(content):
     return "Best Red Wines for Summer Under $50"
 
 def get_blog_id():
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs.json"
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
         "Content-Type": "application/json",
@@ -93,7 +95,67 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 def post_blog_to_shopify(title, body_html, blog_id):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
+    # First try with requests
+    try:
+        return post_blog_to_shopify_requests(title, body_html, blog_id)
+    except Exception as e:
+        print(f"⚠️ Requests method failed: {e}")
+        print("🔄 Trying with urllib...")
+        return post_blog_to_shopify_urllib(title, body_html, blog_id)
+
+def post_blog_to_shopify_requests(title, body_html, blog_id):
+    """Alternative method using urllib instead of requests"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    
+    payload = {
+        "article": {
+            "title": title,
+            "body_html": body_html,
+            "published": True,
+            "author": "Wine Expert",
+            "tags": "wine, summer, red wine"
+        }
+    }
+    
+    data = json.dumps(payload).encode('utf-8')
+    
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method='POST',
+        headers={
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': SHOPIFY_API_TOKEN,
+            'Accept': 'application/json',
+            'Content-Length': str(len(data))
+        }
+    )
+    
+    print(f"🚀 Sending POST via urllib to: {url}")
+    print(f"Payload:\n{json.dumps(payload, indent=2)}")
+    
+    try:
+        with urllib.request.urlopen(req) as response:
+            resp_data = json.loads(response.read().decode('utf-8'))
+            print("✅ urllib POST successful")
+            print("Response:", json.dumps(resp_data, indent=2))
+            
+            article = resp_data.get("article")
+            if article:
+                print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
+                return article
+            else:
+                print("❌ No article in response")
+                return None
+                
+    except urllib.error.HTTPError as e:
+        print(f"❌ HTTP Error: {e.code} - {e.reason}")
+        print(f"Response: {e.read().decode('utf-8')}")
+        raise
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        raise
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
 
     payload = {
         "article": {
@@ -107,13 +169,21 @@ def post_blog_to_shopify(title, body_html, blog_id):
 
     headers = {
         "Content-Type": "application/json",
-        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Accept": "application/json"
     }
 
     print(f"🚀 Sending POST to: {url}")
+    print(f"Headers: {headers}")
     print(f"Payload:\n{json.dumps(payload, indent=2)}")
 
+    # Add debugging to verify the request method
+    print(f"🔍 Making POST request...")
     resp = requests.post(url, headers=headers, json=payload)
+    
+    # Log the actual request details
+    print(f"🔍 Request method: {resp.request.method}")  
+    print(f"🔍 Request URL: {resp.request.url}")
     print("Shopify response status:", resp.status_code)
     print("Response headers:", dict(resp.headers))
 
@@ -154,19 +224,47 @@ def post_blog_to_shopify(title, body_html, blog_id):
     print("❌ Unexpected response structure from Shopify")
     raise Exception("❌ Blog post creation response invalid.")
 
+def test_article_creation(blog_id):
+    """Test if articles are actually being created by checking count before/after"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Content-Type": "application/json",
+    }
+    
+    # Get count before
+    resp = requests.get(url, headers=headers)
+    articles_before = len(resp.json().get("articles", []))
+    print(f"📊 Articles before POST: {articles_before}")
+    return articles_before
 def run():
     print("⚙️ Starting automated blog post run...\n")
     content = generate_blog()
     title = extract_title(content)
     blog_id = get_blog_id()
     
+    # Test: count articles before
+    articles_before = test_article_creation(blog_id)
+    
     try:
         article = post_blog_to_shopify(title, content, blog_id)
+        
+        # Test: count articles after
+        time.sleep(2)  # Wait a moment
+        url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+        headers = {"X-Shopify-Access-Token": SHOPIFY_API_TOKEN}
+        resp = requests.get(url, headers=headers)
+        articles_after = len(resp.json().get("articles", []))
+        print(f"📊 Articles after POST: {articles_after}")
+        
+        if articles_after > articles_before:
+            print("✅ Article was actually created (despite wrong response)!")
         
         print("\n📝 Summary:")
         print(" - Title:", title)
         print(" - Blog ID:", blog_id)
-        print(" - Article ID:", article.get('id'))
+        if article:
+            print(" - Article ID:", article.get('id'))
         print(" - Preview:\n", content[:300], "...\n")
         print("✅ Done.")
         
@@ -175,7 +273,7 @@ def run():
         print("Check your Shopify admin panel to see if the article was created.")
         return False
 
-    time.sleep(600)
+    time.sleep(60)
     return True
 
 if __name__ == "__main__":
