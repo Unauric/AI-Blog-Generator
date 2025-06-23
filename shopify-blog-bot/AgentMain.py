@@ -92,6 +92,7 @@ def get_blog_id():
     raise Exception("❌ Blog with handle 'news' not found.")
 
 def post_blog_to_shopify(title, body_html, blog_id):
+
     url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
 
     payload = {
@@ -115,19 +116,15 @@ def post_blog_to_shopify(title, body_html, blog_id):
 
     try:
         resp_data = resp.json()
-        print("📦 Shopify Raw JSON Response:\n", json.dumps(resp_data, indent=2))
+        print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
     except Exception:
         raise Exception("❌ Failed to decode JSON from Shopify.")
 
-    if 'errors' in resp_data:
-        print("❌ Shopify validation errors:", json.dumps(resp_data['errors'], indent=2))
-        raise Exception("❌ Shopify API returned errors during article creation.")
-
     article = resp_data.get("article")
     if not article:
-        raise Exception("❌ Blog post not created or response invalid (no 'article' key).")
+        raise Exception("❌ Blog post not created or response invalid.")
 
-    if article["title"].strip() != title.strip():
+    if article["title"].strip() != unique_title.strip():
         print("⚠️ Shopify returned a different article title than posted!")
         raise Exception("❌ Possibly got cached/previous article — post may have failed.")
 
