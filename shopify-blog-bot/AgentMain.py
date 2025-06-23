@@ -143,7 +143,7 @@ def run():
     print(" - Preview:\n", content[:300], "...\n")
     print("✅ Done.")
 
-    time.sleep(60)
+    time.sleep(6000)
 
 if __name__ == "__main__":
     run()
