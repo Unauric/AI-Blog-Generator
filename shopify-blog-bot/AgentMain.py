@@ -96,12 +96,15 @@ def update_article(article_id, blog_id, title, content):
 
 def run():
     print("⚙️ Starting blog update script...")
-    content = generate_blog()
-    title = extract_title(content)
-    blog_id = get_blog_id()
-    latest_article = get_latest_article(blog_id)
-    update_article(latest_article['id'], title, content)
-    print("✅ Blog post successfully updated.")
+
+    latest_article = get_latest_article()
+    article_id = latest_article['id']
+    blog_id = latest_article['blog_id']  # Needed for PUT request
+    print(f"📝 Updating article ID {article_id}...")
+
+    title, content = generate_blog_content()  # Assume this returns title and HTML body
+    update_article(article_id, blog_id, title, content)
+
 
 if __name__ == "__main__":
     run()
