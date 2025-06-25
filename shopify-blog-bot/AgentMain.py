@@ -1,12 +1,12 @@
 import os
 import requests
-import urllib.parse
 import openai
 from dotenv import load_dotenv
+from AIPromptGenerator import get_prompt
+import time
 import re
 import sys
 import json
-import time
 
 # Load env
 load_dotenv()
@@ -26,6 +26,24 @@ if missing_env:
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 def generate_blog():
+   ## print("⏳ Generating blog with OpenAI...")
+   ## response = client.chat.completions.create(
+   ##     model="gpt-4o",
+   ##     messages=[
+   ##         {
+   ##            "role": "system",
+   ##             "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop.",
+   ##         },
+   ##         {
+   ##             "role": "user",
+   ##            "content": "Write a blog post about 'Best red wines for summer under $50'.",
+   ##         },
+   ##     ],
+   ##     temperature=0.7,
+   ## )
+   ## content = response.choices[0].message.content
+   ## print("✅ Blog content generated.")
+    
     return """
     <h2>Best Red Wines for Summer Under $50</h2>
     <p>Looking for great red wines that pair well with sunshine? Here are 5 amazing picks under $50.</p>
@@ -37,74 +55,96 @@ def generate_blog():
         <li>Barbera</li>
     </ul>
     """
-
 def extract_title(content):
-    match = re.search(r"<h2>(.*?)</h2>", content)
-    if match:
-        return match.group(1).strip()
-    return "Weekly Blog"
+    ##print("🔍 Extracting blog title...")
+    ##match = re.search(r"<h2>(.*?)</h2>", content)
+    ##if match:
+    ##    title = match.group(1).strip()
+    ##else:
+        # Try fallback: first markdown or plain line
+    ##    first_line = content.strip().splitlines()[0]
+    ##    title = re.sub(r'[*#<>]', '', first_line).strip()
+    ##    if not title:
+    ##        title = "Weekly Blog"
+    ## print("📌 Extracted title:", title)
+    return "dummy tittle"
 
 def get_blog_id():
-    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs.json"
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs.json"
     headers = {
         "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
         "Content-Type": "application/json",
     }
+
+    print("🌐 Fetching blog list from Shopify...")
     resp = requests.get(url, headers=headers)
+    print("Status:", resp.status_code)
+    print("Response:", resp.text)
     resp.raise_for_status()
+
     blogs = resp.json().get("blogs", [])
     for blog in blogs:
+        print(f" - id: {blog['id']}, handle: {blog['handle']}")
+    for blog in blogs:
         if blog["handle"] == "news":
+            print(f"✅ Found blog 'news' with id: {blog['id']}")
             return blog["id"]
     raise Exception("❌ Blog with handle 'news' not found.")
 
-def get_latest_article(blog_id):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json?limit=1&order=created_at+desc"
-    headers = {
-        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
-        "Content-Type": "application/json",
-    }
-    resp = requests.get(url, headers=headers)
-    resp.raise_for_status()
-    articles = resp.json().get("articles", [])
-    if not articles:
-        raise Exception("❌ No articles found to edit.")
-    return articles[0]
+def post_blog_to_shopify(title, body_html, blog_id):
 
-def update_article(article_id, blog_id, title, content):
-    url = f"https://{SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/blogs/{blog_id}/articles/{article_id}.json"
-    headers = {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": SHOPIFY_API_KEY
-    }
+    url = f"https://{SHOPIFY_STORE}/admin/api/2025-04/blogs/{blog_id}/articles.json"
+
     payload = {
         "article": {
             "title": title,
-            "body_html": content
+            "body_html": body_html,
+            "published": True
         }
     }
 
-    response = requests.put(url, headers=headers, data=json.dumps(payload))
+    headers = {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN
+    }
 
-    if response.status_code == 200:
-        print("✅ Article updated successfully.")
-    else:
-        print(f"❌ Failed to update article. Status: {response.status_code}")
-        print("Response:", response.text)
-        raise Exception("❌ Update failed.")
+    print(f"🚀 Sending POST to: {url}")
+    print(f"Payload:\n{json.dumps(payload, indent=2)[:1000]}...")
+
+    resp = requests.post(url, headers=headers, json=payload)
+    print("Shopify response status:", resp.status_code)
+
+    try:
+        resp_data = resp.json()
+        print("Shopify JSON response:", json.dumps(resp_data, indent=2)[:1000])
+    except Exception:
+        raise Exception("❌ Failed to decode JSON from Shopify.")
+
+    article = resp_data.get("article")
+    if not article:
+        raise Exception("❌ Blog post not created or response invalid.")
+
+    if article["title"].strip() != unique_title.strip():
+        print("⚠️ Shopify returned a different article title than posted!")
+        raise Exception("❌ Possibly got cached/previous article — post may have failed.")
+
+    print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
 
 
 def run():
-    print("⚙️ Starting blog update script...")
+    print("⚙️ Starting automated blog post run...\n")
+    content = generate_blog()
+    title = extract_title(content)
+    blog_id = get_blog_id()
+    post_blog_to_shopify(title, content, blog_id)
 
-    latest_article = get_latest_article()
-    article_id = latest_article['id']
-    blog_id = latest_article['blog_id']  # Needed for PUT request
-    print(f"📝 Updating article ID {article_id}...")
+    print("\n📝 Summary:")
+    print(" - Title:", title)
+    print(" - Blog ID:", blog_id)
+    print(" - Preview:\n", content[:300], "...\n")
+    print("✅ Done.")
 
-    title, content = generate_blog_content()  # Assume this returns title and HTML body
-    update_article(article_id, blog_id, title, content)
-
+    time.sleep(60)
 
 if __name__ == "__main__":
     run()
