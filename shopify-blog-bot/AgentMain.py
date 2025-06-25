@@ -30,44 +30,44 @@ client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 def generate_blog():
     print("⏳ Generating blog with OpenAI...")
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop.",
-            },
-            {
-                "role": "user",
-                "content": "Write a blog post about 'Best red wines for summer under $50'.",
-            },
-        ],
-        temperature=0.7,
-    )
-    content = response.choices[0].message.content
-    print("✅ Blog content generated.")
-    return content
+   # response = client.chat.completions.create(
+   #     model="gpt-4o",
+   #     messages=[
+   #         {
+   #             "role": "system",
+   #             "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop.",
+   #         },
+   #         {
+   #             "role": "user",
+   #             "content": "Write a blog post about 'Best red wines for summer under $50'.",
+   #         },
+   #     ],
+   #     temperature=0.7,
+   # )
+   # content = response.choices[0].message.content
+   # print("✅ Blog content generated.")
+    return "aa"
 
 def extract_title(content):
-    print("🔍 Extracting blog title...")
+   # print("🔍 Extracting blog title...")
     # Try to find H1 or H2 tags
-    match = re.search(r"<h[12]>(.*?)</h[12]>", content, re.IGNORECASE)
-    if match:
-        title = match.group(1).strip()
-    else:
+   # match = re.search(r"<h[12]>(.*?)</h[12]>", content, re.IGNORECASE)
+   # if match:
+   #     title = match.group(1).strip()
+   # else:
         # Try markdown headers
-        match = re.search(r"^#+\s*(.*)", content, re.MULTILINE)
-        if match:
-            title = match.group(1).strip()
-        else:
-            # Fallback: first line
-            first_line = content.strip().splitlines()[0]
-            title = re.sub(r'[*#<>]', '', first_line).strip()
-            if not title:
-                title = "Weekly Blog"
-    
-    print("📌 Extracted title:", title)
-    return title
+   #     match = re.search(r"^#+\s*(.*)", content, re.MULTILINE)
+   #     if match:
+   #         title = match.group(1).strip()
+   #     else:
+   #         # Fallback: first line
+   #         first_line = content.strip().splitlines()[0]
+   #         title = re.sub(r'[*#<>]', '', first_line).strip()
+   #         if not title:
+   #             title = "Weekly Blog"
+   # 
+   # print("📌 Extracted title:", title)
+    return "dummy title"
 
 def check_wordpress_connection():
     """Test WordPress API connection"""
