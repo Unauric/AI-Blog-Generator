@@ -71,31 +71,28 @@ def get_latest_article(blog_id):
         raise Exception("❌ No articles found to edit.")
     return articles[0]
 
-def update_article(article_id, title, body_html):
-    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/articles/{article_id}.json"
-    payload = {
-        "article": {
-            "id": article_id,
-            "title": title,
-            "body_html": body_html,
-            "author": "Wine Expert",
-            "tags": "wine, summer, red wine"
-        }
-    }
+def update_article(article_id, blog_id, title, content):
+    url = f"https://{SHOPIFY_STORE_NAME}.myshopify.com/admin/api/2023-10/blogs/{blog_id}/articles/{article_id}.json"
     headers = {
         "Content-Type": "application/json",
-        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
-        "Accept": "application/json"
+        "X-Shopify-Access-Token": SHOPIFY_API_KEY
     }
-    print(f"📝 Updating article ID {article_id}...")
-    resp = requests.put(url, headers=headers, json=payload)
-    if resp.status_code not in [200, 201]:
-        print(f"❌ Failed to update article. Status: {resp.status_code}")
-        print("Response:", resp.text)
+    payload = {
+        "article": {
+            "title": title,
+            "body_html": content
+        }
+    }
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code == 200:
+        print("✅ Article updated successfully.")
+    else:
+        print(f"❌ Failed to update article. Status: {response.status_code}")
+        print("Response:", response.text)
         raise Exception("❌ Update failed.")
-    article = resp.json().get("article")
-    print(f"✅ Article updated: {article['title']} (ID: {article['id']})")
-    return article
+
 
 def run():
     print("⚙️ Starting blog update script...")
