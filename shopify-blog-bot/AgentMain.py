@@ -17,10 +17,9 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SHOPIFY_API_TOKEN = os.getenv("SHOPIFY_API_TOKEN")
 SHOPIFY_STORE = os.getenv("SHOPIFY_STORE")
-WORDPRESS_USERNAME = os.getenv("WORDPRESS_USERNAME")
-WORDPRESS_APP_PASSWORD = os.getenv("WORDPRESS_APP_PASSWORD")
 
-missing_env = [var for var in ["OPENAI_API_KEY", "WORDPRESS_URL", "WORDPRESS_USERNAME", "WORDPRESS_APP_PASSWORD"] if not os.getenv(var)]
+# 🔒 Sanity check
+missing_env = [var for var in ["OPENAI_API_KEY", "SHOPIFY_API_TOKEN", "SHOPIFY_STORE"] if not os.getenv(var)]
 if missing_env:
     print(f"❌ Missing required environment variables: {', '.join(missing_env)}")
     sys.exit(1)
@@ -29,274 +28,354 @@ if missing_env:
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 def generate_blog():
-    print("⏳ Generating blog with OpenAI...")
-   # response = client.chat.completions.create(
-   #     model="gpt-4o",
-   #     messages=[
-   #         {
-   #             "role": "system",
-   #             "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop.",
-   #         },
-   #         {
-   #             "role": "user",
-   #             "content": "Write a blog post about 'Best red wines for summer under $50'.",
-   #         },
-   #     ],
-   #     temperature=0.7,
-   # )
-   # content = response.choices[0].message.content
-   # print("✅ Blog content generated.")
-    return "aa"
+   ## print("⏳ Generating blog with OpenAI...")
+   ## response = client.chat.completions.create(
+   ##     model="gpt-4o",
+   ##     messages=[
+   ##         {
+   ##            "role": "system",
+   ##             "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop.",
+   ##         },
+   ##         {
+   ##             "role": "user",
+   ##            "content": "Write a blog post about 'Best red wines for summer under $50'.",
+   ##         },
+   ##     ],
+   ##     temperature=0.7,
+   ## )
+   ## content = response.choices[0].message.content
+   ## print("✅ Blog content generated.")
+    
+    return """
+    <h2>Best Red Wines for Summer Under $50</h2>
+    <p>Looking for great red wines that pair well with sunshine? Here are 5 amazing picks under $50.</p>
+    <ul>
+        <li>Pinot Noir</li>
+        <li>Gamay</li>
+        <li>Zinfandel</li>
+        <li>Grenache</li>
+        <li>Barbera</li>
+    </ul>
+    """
 
 def extract_title(content):
-   # print("🔍 Extracting blog title...")
-    # Try to find H1 or H2 tags
-   # match = re.search(r"<h[12]>(.*?)</h[12]>", content, re.IGNORECASE)
-   # if match:
-   #     title = match.group(1).strip()
-   # else:
-        # Try markdown headers
-   #     match = re.search(r"^#+\s*(.*)", content, re.MULTILINE)
-   #     if match:
-   #         title = match.group(1).strip()
-   #     else:
-   #         # Fallback: first line
-   #         first_line = content.strip().splitlines()[0]
-   #         title = re.sub(r'[*#<>]', '', first_line).strip()
-   #         if not title:
-   #             title = "Weekly Blog"
-   # 
-   # print("📌 Extracted title:", title)
-    return "dummy title"
+    ##print("🔍 Extracting blog title...")
+    ##match = re.search(r"<h2>(.*?)</h2>", content)
+    ##if match:
+    ##    title = match.group(1).strip()
+    ##else:
+        # Try fallback: first markdown or plain line
+    ##    first_line = content.strip().splitlines()[0]
+    ##    title = re.sub(r'[*#<>]', '', first_line).strip()
+    ##    if not title:
+    ##        title = "Weekly Blog"
+    ## print("📌 Extracted title:", title)
+    return "Best Red Wines for Summer Under $50"
 
-def check_wordpress_connection():
-    """Test WordPress API connection"""
-    print("🔍 Testing WordPress API connection...")
-    
-    url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
-    credentials = base64.b64encode(f"{WORDPRESS_USERNAME}:{WORDPRESS_APP_PASSWORD}".encode()).decode()
-    
+def get_blog_id():
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs.json"
     headers = {
-        "Authorization": f"Basic {credentials}",
-        "Content-Type": "application/json"
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Content-Type": "application/json",
     }
-    
+
+    print("🌐 Fetching blog list from Shopify...")
+    resp = requests.get(url, headers=headers)
+    print("Status:", resp.status_code)
+    print("Response:", resp.text)
+    resp.raise_for_status()
+
+    blogs = resp.json().get("blogs", [])
+    for blog in blogs:
+        print(f" - id: {blog['id']}, handle: {blog['handle']}")
+    for blog in blogs:
+        if blog["handle"] == "news":
+            print(f"✅ Found blog 'news' with id: {blog['id']}")
+            return blog["id"]
+    raise Exception("❌ Blog with handle 'news' not found.")
+
+def post_blog_to_shopify(title, body_html, blog_id):
+    # First try with requests
     try:
-        # Just get the first post to test connection
-        resp = requests.get(f"{url}?per_page=1", headers=headers)
-        if resp.status_code == 200:
-            print("✅ WordPress API connection successful")
-            return True
-        else:
-            print(f"❌ WordPress API connection failed: {resp.status_code}")
-            print(f"Response: {resp.text}")
-            return False
+        return post_blog_to_shopify_requests(title, body_html, blog_id)
     except Exception as e:
-        print(f"❌ WordPress connection error: {e}")
-        return False
+        print(f"⚠️ Requests method failed: {e}")
+        print("🔄 Trying with urllib...")
+        return post_blog_to_shopify_urllib(title, body_html, blog_id)
 
-def post_to_wordpress(title, content, status="publish"):
-    """Post content to WordPress"""
-    print("🚀 Posting to WordPress...")
-    
-    url = f"{WORDPRESS_URL}/wp-json/wp/v2/posts"
-    credentials = base64.b64encode(f"{WORDPRESS_USERNAME}:{WORDPRESS_APP_PASSWORD}".encode()).decode()
-    
-    headers = {
-        "Authorization": f"Basic {credentials}",
-        "Content-Type": "application/json"
-    }
-    
-    # Clean up content for WordPress
-    # Remove any existing HTML structure tags if they exist
-    clean_content = content
-    if not clean_content.startswith('<'):
-        # If content is markdown or plain text, convert line breaks to <p> tags
-        paragraphs = clean_content.split('\n\n')
-        clean_content = ''.join([f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()])
+def post_blog_to_shopify_requests(title, body_html, blog_id):
+    """Alternative method using urllib instead of requests"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
     
     payload = {
-        "title": title,
-        "content": clean_content,
-        "status": status,  # "publish", "draft", or "private"
-        "author": 1,  # Usually 1 for admin, adjust if needed
-        "categories": [],  # Add category IDs if you want
-        "tags": []  # Add tag IDs if you want
+        "article": {
+            "title": title,
+            "body_html": body_html,
+            "published": True,
+            "author": "Wine Expert",
+            "tags": "wine, summer, red wine"
+        }
     }
     
-    print(f"📝 Title: {title}")
-    print(f"📄 Content preview: {clean_content[:200]}...")
+    data = json.dumps(payload).encode('utf-8')
+    
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method='POST',
+        headers={
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': SHOPIFY_API_TOKEN,
+            'Accept': 'application/json',
+            'Content-Length': str(len(data))
+        }
+    )
+    
+    print(f"🚀 Sending POST via urllib to: {url}")
+    print(f"Payload:\n{json.dumps(payload, indent=2)}")
     
     try:
-        resp = requests.post(url, headers=headers, json=payload)
-        
-        if resp.status_code == 201:
-            post_data = resp.json()
-            print(f"✅ Post created successfully!")
-            print(f"📌 Post ID: {post_data['id']}")
-            print(f"🔗 Post URL: {post_data['link']}")
-            return post_data
-        else:
-            print(f"❌ Failed to create post: {resp.status_code}")
-            print(f"Response: {resp.text}")
-            return None
+        with urllib.request.urlopen(req) as response:
+            resp_data = json.loads(response.read().decode('utf-8'))
+            print("✅ urllib POST successful")
+            print("Response:", json.dumps(resp_data, indent=2))
             
+            article = resp_data.get("article")
+            if article:
+                print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
+                return article
+            else:
+                print("❌ No article in response")
+                return None
+                
+    except urllib.error.HTTPError as e:
+        print(f"❌ HTTP Error: {e.code} - {e.reason}")
+        print(f"Response: {e.read().decode('utf-8')}")
+        raise
     except Exception as e:
-        print(f"❌ Error posting to WordPress: {e}")
-        return None
+        print(f"❌ Error: {e}")
+        raise
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
 
-def get_wordpress_categories():
-    """Get available categories from WordPress"""
-    print("📂 Fetching WordPress categories...")
-    
-    url = f"{WORDPRESS_URL}/wp-json/wp/v2/categories"
-    credentials = base64.b64encode(f"{WORDPRESS_USERNAME}:{WORDPRESS_APP_PASSWORD}".encode()).decode()
-    
+    payload = {
+        "article": {
+            "title": title,
+            "body_html": body_html,
+            "published": True,
+            "author": "Wine Expert",  # Optional: add author
+            "tags": "wine, summer, red wine"  # Optional: add tags
+        }
+    }
+
     headers = {
-        "Authorization": f"Basic {credentials}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Accept": "application/json"
+    }
+
+    print(f"🚀 Sending POST to: {url}")
+    print(f"Headers: {headers}")
+    print(f"Payload:\n{json.dumps(payload, indent=2)}")
+
+    # Add debugging to verify the request method
+    print(f"🔍 Making POST request...")
+    resp = requests.post(url, headers=headers, json=payload)
+    
+    # Log the actual request details
+    print(f"🔍 Request method: {resp.request.method}")  
+    print(f"🔍 Request URL: {resp.request.url}")
+    print("Shopify response status:", resp.status_code)
+    print("Response headers:", dict(resp.headers))
+
+    try:
+        resp_data = resp.json()
+        print("Shopify JSON response:", json.dumps(resp_data, indent=2))
+    except Exception as e:
+        print(f"❌ Failed to decode JSON from Shopify: {e}")
+        print("Raw response:", resp.text)
+        raise Exception("❌ Failed to decode JSON from Shopify.")
+
+    # Check if we have a successful response
+    if resp.status_code not in [200, 201]:
+        print(f"❌ Unexpected status code: {resp.status_code}")
+        raise Exception(f"❌ Shopify API returned status {resp.status_code}")
+
+    # Check for the created article in the response
+    article = resp_data.get("article")
+    if article:
+        # Single article was created (expected response)
+        print(f"✅ Blog post created with ID: {article['id']}, Title: {article['title']}")
+        return article
+    
+    # Check if response contains articles array (unexpected but handle it)
+    articles = resp_data.get("articles")
+    if articles:
+        print("⚠️ Received articles array instead of single article")
+        # Try to find our article by title
+        for article in articles:
+            if article.get("title", "").strip().lower() == title.strip().lower():
+                print(f"✅ Found matching article with ID: {article['id']}")
+                return article
+        
+        print("❌ Could not find newly created article in response")
+        raise Exception("❌ Article creation unclear - check Shopify admin panel")
+    
+    # If we get here, the response structure is unexpected
+    print("❌ Unexpected response structure from Shopify")
+    raise Exception("❌ Blog post creation response invalid.")
+
+def test_article_creation(blog_id):
+    """Test if articles are actually being created by checking count before/after"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Content-Type": "application/json",
+    }
+    
+    # Get count before
+    resp = requests.get(url, headers=headers)
+    articles_before = len(resp.json().get("articles", []))
+    print(f"📊 Articles before POST: {articles_before}")
+    return articles_before
+
+def check_api_permissions():
+    """Check if we have the right permissions by testing a simple GET first"""
+    print("🔍 Checking API permissions...")
+    
+    # Test basic shop access
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/shop.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Content-Type": "application/json",
     }
     
     try:
         resp = requests.get(url, headers=headers)
         if resp.status_code == 200:
-            categories = resp.json()
-            print("Available categories:")
-            for cat in categories:
-                print(f"  - {cat['name']} (ID: {cat['id']})")
-            return categories
+            print("✅ Basic API access works")
         else:
-            print(f"❌ Failed to fetch categories: {resp.status_code}")
-            return []
-    except Exception as e:
-        print(f"❌ Error fetching categories: {e}")
-        return []
-
-def create_wordpress_category(name, description=""):
-    """Create a new category in WordPress"""
-    print(f"📂 Creating category: {name}")
-    
-    url = f"{WORDPRESS_URL}/wp-json/wp/v2/categories"
-    credentials = base64.b64encode(f"{WORDPRESS_USERNAME}:{WORDPRESS_APP_PASSWORD}".encode()).decode()
-    
-    headers = {
-        "Authorization": f"Basic {credentials}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "name": name,
-        "description": description
-    }
-    
-    try:
-        resp = requests.post(url, headers=headers, json=payload)
-        if resp.status_code == 201:
-            category = resp.json()
-            print(f"✅ Category created: {category['name']} (ID: {category['id']})")
-            return category
-        else:
-            print(f"❌ Failed to create category: {resp.status_code}")
+            print(f"❌ Basic API access failed: {resp.status_code}")
             print(f"Response: {resp.text}")
-            return None
-    except Exception as e:
-        print(f"❌ Error creating category: {e}")
-        return None
-
-def run():
-    print("⚙️ Starting WordPress auto-blogger...\n")
-    
-    # Step 1: Test WordPress connection
-    if not check_wordpress_connection():
-        print("❌ WordPress connection failed. Please check your credentials.")
-        return False
-    
-    # Step 2: Generate content
-    try:
-        content = generate_blog()
-        title = extract_title(content)
-    except Exception as e:
-        print(f"❌ Error generating content: {e}")
-        return False
-    
-    # Step 3: Post to WordPress
-    try:
-        post_data = post_to_wordpress(title, content, status="publish")
-        if post_data:
-            print("\n✅ Blog post successfully published!")
-            print(f"🔗 View at: {post_data['link']}")
-            return True
-        else:
-            print("❌ Failed to publish post")
             return False
     except Exception as e:
-        print(f"❌ Error during posting: {e}")
+        print(f"❌ API connection failed: {e}")
+        return False
+    
+    return True
+    """Test with absolute minimal required fields"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    
+    # Try with just title and body_html (absolute minimum)
+    minimal_payload = {
+        "article": {
+            "title": "Test Article - DELETE ME",
+            "body_html": "<p>This is a test article. Please delete.</p>"
+        }
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Accept": "application/json"
+    }
+    
+    print("🧪 Testing minimal article creation...")
+    print(f"Minimal payload: {json.dumps(minimal_payload, indent=2)}")
+    
+    resp = requests.post(url, headers=headers, json=minimal_payload)
+    print(f"Minimal test status: {resp.status_code}")
+    
+    try:
+        resp_data = resp.json()
+        print(f"Minimal test response: {json.dumps(resp_data, indent=2)[:500]}...")
+        
+        # Check if this worked
+        if resp_data.get("article"):
+            print("✅ Minimal article creation WORKED!")
+            return True
+        elif resp_data.get("articles"):
+            print("❌ Still getting articles array with minimal payload")
+            return False
+        else:
+            print("❌ Unknown response structure")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error with minimal test: {e}")
+        return False
+    """Test if articles are actually being created by checking count before/after"""
+    url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+    headers = {
+        "X-Shopify-Access-Token": SHOPIFY_API_TOKEN,
+        "Content-Type": "application/json",
+    }
+    
+    # Get count before
+    resp = requests.get(url, headers=headers)
+    articles_before = len(resp.json().get("articles", []))
+    print(f"📊 Articles before POST: {articles_before}")
+    return articles_before
+
+def run():
+    print("⚙️ Starting automated blog post run...\n")
+    
+    # Step 1: Check basic API permissions
+    if not check_api_permissions():
+        print("❌ API permission check failed. Exiting.")
+        return False
+    
+    content = generate_blog()
+    title = extract_title(content)
+    blog_id = get_blog_id()
+    
+    # Step 2: Test minimal article creation first
+    print("\n" + "="*50)
+    print("STEP 2: Testing minimal article creation")
+    print("="*50)
+    
+    if test_article_creation(blog_id):
+        print("✅ Minimal creation works - issue is with our payload")
+    else:
+        print("❌ Even minimal creation fails - deeper API issue")
+    
+    # Step 3: Test article counting
+    print("\n" + "="*50)
+    print("STEP 3: Testing article creation with full payload")
+    print("="*50)
+    
+    articles_before = test_article_creation(blog_id)
+    
+    try:
+        article = post_blog_to_shopify(title, content, blog_id)
+        
+        # Test: count articles after
+        time.sleep(2)  # Wait a moment
+        url = f"https://{SHOPIFY_STORE}/admin/api/2024-10/blogs/{blog_id}/articles.json"
+        headers = {"X-Shopify-Access-Token": SHOPIFY_API_TOKEN}
+        resp = requests.get(url, headers=headers)
+        articles_after = len(resp.json().get("articles", []))
+        print(f"📊 Articles after POST: {articles_after}")
+        
+        if articles_after > articles_before:
+            print("✅ Article was actually created (despite wrong response)!")
+        else:
+            print("❌ Article count didn't increase - creation likely failed")
+        
+        print("\n📝 Summary:")
+        print(" - Title:", title)
+        print(" - Blog ID:", blog_id)
+        if article:
+            print(" - Article ID:", article.get('id'))
+        print(" - Preview:\n", content[:300], "...\n")
+        print("✅ Done.")
+        
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        print("Check your Shopify admin panel to see if the article was created.")
         return False
 
-def run_batch(topics_list):
-    """Run multiple blog posts from a list of topics"""
-    print(f"🚀 Starting batch run for {len(topics_list)} topics...")
-    
-    if not check_wordpress_connection():
-        print("❌ WordPress connection failed. Exiting batch run.")
-        return
-    
-    success_count = 0
-    for i, topic in enumerate(topics_list, 1):
-        print(f"\n{'='*50}")
-        print(f"📝 Processing {i}/{len(topics_list)}: {topic}")
-        print('='*50)
-        
-        try:
-            # Generate content for this topic
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a helpful assistant that writes high-quality SEO-friendly blogs for a wine shop. Write engaging, informative content with proper HTML formatting.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Write a comprehensive blog post about '{topic}'. Include proper headings, paragraphs, and make it SEO-friendly.",
-                    },
-                ],
-                temperature=0.7,
-            )
-            
-            content = response.choices[0].message.content
-            title = extract_title(content) or topic
-            
-            # Post to WordPress
-            post_data = post_to_wordpress(title, content, status="publish")
-            
-            if post_data:
-                print(f"✅ Success! Published: {title}")
-                success_count += 1
-            else:
-                print(f"❌ Failed to publish: {title}")
-            
-            # Add delay between posts to avoid rate limiting
-            if i < len(topics_list):
-                print("⏳ Waiting 10 seconds before next post...")
-                time.sleep(10)
-                
-        except Exception as e:
-            print(f"❌ Error processing '{topic}': {e}")
-            continue
-    
-    print(f"\n🎉 Batch complete! Successfully published {success_count}/{len(topics_list)} posts")
+    time.sleep(600)
+    return True
 
 if __name__ == "__main__":
-    # Single post example
-    # run()
-    
-    # Batch example - uncomment to use
-    topics = [
-        "Best red wines for summer under $50",
-        "Wine pairing guide for grilled foods",
-        "How to properly store wine at home",
-        "Beginner's guide to wine tasting",
-        "Top 10 wine regions every enthusiast should know"
-    ]
-    run_batch(topics)
+    run()
